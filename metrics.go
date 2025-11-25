@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -30,7 +32,17 @@ func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, req *http.Request) {
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, req *http.Request) {
 	cfg.fileserverHits.Store(0)
+	returnStr := "Hits reset to 0"
+	if cfg.platform == "dev" {
+		ctx := context.Background()
+		err := cfg.db.DeleteAllUsers(ctx)
+		if err != nil {
+			log.Printf("Error Deleting all users: %s\n", err)
+		} else {
+			returnStr += " and users reset in DB"
+		}
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Hits reset to 0"))
+	w.Write([]byte(returnStr))
 }

@@ -13,7 +13,8 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	dbQueries *database.Queries
+	db *database.Queries
+	platform string
 }
 
 func main() {
@@ -30,19 +31,22 @@ func main() {
 	if filepathRoot == "" {
 		log.Fatalln("filepath root not found")
 	}
+	platform := os.Getenv("PLATFORM")
+	
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatalln("Database connection string not found")
 	}
 
-	db, err := sql.Open("postgres", dbURL)
+	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalln("Could not open database connection")
 	}
 
 	apiConfig := apiConfig{
 		fileserverHits: atomic.Int32{},
-		dbQueries: database.New(db),
+		db: database.New(dbConn),
+		platform: platform,
 	}
 
 	mux := http.NewServeMux()
@@ -52,6 +56,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", apiConfig.resetHandler)
 	mux.HandleFunc("GET /api/healthz", healthHandler)
 	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
+	mux.HandleFunc("POST /api/users", apiConfig.addUserHandler)
 
 	s := &http.Server{
 		Addr: ":" + port,
