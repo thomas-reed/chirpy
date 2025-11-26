@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"github.com/joho/godotenv"
 	"github.com/thomas-reed/chirpy/internal/database"
+	"github.com/pressly/goose/v3"
 	_ "github.com/lib/pq"
 )
 
@@ -42,6 +43,13 @@ func main() {
 	if err != nil {
 		log.Fatalln("Could not open database connection")
 	}
+	if err := goose.SetDialect("postgres"); err != nil {
+    log.Fatalf("Error running goose SetDialect: %v", err)
+	}
+
+	if err := goose.Up(dbConn, "sql/schema"); err != nil {
+			log.Fatalf("Error running goose Up: %v", err)
+	}
 
 	apiConfig := apiConfig{
 		fileserverHits: atomic.Int32{},
@@ -52,11 +60,13 @@ func main() {
 	mux := http.NewServeMux()
 	fsHandler := http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
 	mux.Handle("/app/", apiConfig.middlewareMetricsInc(fsHandler))
+	
+	mux.HandleFunc("GET /api/healthz", healthHandler)
+	mux.HandleFunc("POST /api/users", apiConfig.addUserHandler)
+	mux.HandleFunc("POST /api/chirps", apiConfig.addChirpHandler)
+
 	mux.HandleFunc("GET /admin/metrics", apiConfig.metricsHandler)
 	mux.HandleFunc("POST /admin/reset", apiConfig.resetHandler)
-	mux.HandleFunc("GET /api/healthz", healthHandler)
-	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
-	mux.HandleFunc("POST /api/users", apiConfig.addUserHandler)
 
 	s := &http.Server{
 		Addr: ":" + port,
