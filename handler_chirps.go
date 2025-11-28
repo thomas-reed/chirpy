@@ -79,3 +79,47 @@ func cleanText(text string) string {
 	}
 	return strings.Join(words, " ")
 }
+
+
+func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, req *http.Request) {
+	rawChirps, err := cfg.db.GetAllChirps(req.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error getting all chirps", err)
+		return
+	}
+
+	chirps := make([]Chirp, 0, len(rawChirps))
+	for _, chirp := range rawChirps {
+		chirps = append(chirps, Chirp{
+			Id: chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body: chirp.Body,
+			UserId: chirp.UserID,
+		})
+	}
+	
+	jsonResponse(w, http.StatusOK, chirps)
+}
+
+func (cfg *apiConfig) getChirpByIDHandler(w http.ResponseWriter, req *http.Request) {
+	idStr := req.PathValue("chirpID")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp id", err)
+		return
+	}
+	chirp, err := cfg.db.GetChirpByID(req.Context(), id)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "No chirp with provided id", err)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, Chirp{
+		Id: chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body: chirp.Body,
+		UserId: chirp.UserID,
+	})
+}
