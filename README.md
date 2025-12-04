@@ -1,2 +1,2 @@
 # chirpy
-Boot.dev project - 
+Boot.dev project - backend for a microblog-like social platform
