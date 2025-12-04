@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 	"strings"
+	"time"
+
 	"github.com/google/uuid"
+	"github.com/thomas-reed/chirpy/internal/auth"
 	"github.com/thomas-reed/chirpy/internal/database"
 )
 
@@ -20,13 +22,22 @@ type Chirp struct {
 func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, req *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
-		UserId string `json:"user_id"`
 	}
 	decoder := json.NewDecoder(req.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error decoding chirp parameters", err)
+		return
+	}
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Error getting authorization token", err)
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid token", err)
 		return
 	}
 	if len(params.Body) == 0  {
@@ -37,16 +48,10 @@ func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, req *http.Request) 
 		respondWithError(w, http.StatusBadRequest, "Chirp is too long", nil)
 		return
 	}
-	id, err := uuid.Parse(params.UserId)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid user id", err)
-		return
-	}
 
 	newChirpParams := database.CreateChirpParams{
 		Body: cleanText(params.Body),
-		UserID: id,
-
+		UserID: userID,
 	}
 
 	chirp, err := cfg.db.CreateChirp(req.Context(), newChirpParams)

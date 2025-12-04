@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db *database.Queries
 	platform string
+	jwtSecret string
 }
 
 func main() {
@@ -33,6 +34,10 @@ func main() {
 		log.Fatalln("filepath root not found")
 	}
 	platform := os.Getenv("PLATFORM")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatalln("jwt secret not found")
+	}
 	
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
@@ -55,6 +60,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db: database.New(dbConn),
 		platform: platform,
+		jwtSecret: jwtSecret,
 	}
 
 	mux := http.NewServeMux()
@@ -62,6 +68,7 @@ func main() {
 	mux.Handle("/app/", apiConfig.middlewareMetricsInc(fsHandler))
 	
 	mux.HandleFunc("GET /api/healthz", healthHandler)
+	mux.HandleFunc("POST /api/login", apiConfig.loginUserHandler)
 	mux.HandleFunc("POST /api/users", apiConfig.addUserHandler)
 	mux.HandleFunc("GET /api/chirps", apiConfig.getChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConfig.getChirpByIDHandler)
