@@ -140,3 +140,9 @@ func TestGetBearerToken(t *testing.T) {
 		})
 	}
 }
+
+func TestMakeRefreshToken(t *testing.T) {
+	if token, err := MakeRefreshToken(); err != nil {
+		t.Errorf("MakeRefreshToken() = %v\nError: %v", token, err)
+	}
+}

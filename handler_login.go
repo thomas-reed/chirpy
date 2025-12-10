@@ -4,7 +4,9 @@ import (
 	"time"
 	"encoding/json"
 	"net/http"
+
 	"github.com/thomas-reed/chirpy/internal/auth"
+	"github.com/thomas-reed/chirpy/internal/database"
 )
 
 const maxExpireTime = int64(time.Hour)
@@ -13,8 +15,14 @@ func (cfg *apiConfig) loginUserHandler(w http.ResponseWriter, req *http.Request)
 	type parameters struct {
 		Email string `json:"email"`
 		Password string `json:"password"`
-		ExpiresInSeconds int64 `json:"expires_in_seconds"`
 	}
+	
+	type login struct {
+		User
+		Token string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+
 	decoder := json.NewDecoder(req.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
@@ -33,21 +41,34 @@ func (cfg *apiConfig) loginUserHandler(w http.ResponseWriter, req *http.Request)
 		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password", err)
 		return
 	}
-	expires := params.ExpiresInSeconds
-	if expires <= 0 || expires > maxExpireTime {
-		expires = maxExpireTime
-	}
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Duration(expires))
+	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating JWT", err)
 		return
 	}
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error creating refresh token", err)
+		return
+	}
+	createTokenParams := database.CreateRefreshTokenParams{
+		Token: refreshToken,
+		UserID: user.ID,
+	}
+	_, err = cfg.db.CreateRefreshToken(req.Context(), createTokenParams)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error inserting refresh token in db", err)
+		return
+	}
 	
-	jsonResponse(w, http.StatusOK, User{
-		Id: user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email: user.Email,
+	jsonResponse(w, http.StatusOK, login{
+		User: User{
+			ID: user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email: user.Email,
+		},
 		Token: token,
+		RefreshToken: refreshToken,
 	})
 }
