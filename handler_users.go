@@ -62,7 +62,7 @@ func (cfg *apiConfig) addUserHandler(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
-func (cfg *apiConfig) updateUserCreds(w http.ResponseWriter, req *http.Request) {
+func (cfg *apiConfig) updateUserCredsHandler(w http.ResponseWriter, req *http.Request) {
 	token, err := auth.GetBearerToken(req.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Refresh token not in headers", err)

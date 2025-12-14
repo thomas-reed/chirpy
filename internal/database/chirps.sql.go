@@ -41,8 +41,33 @@ func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp
 	return i, err
 }
 
+const deleteChirpByIdAndUser = `-- name: DeleteChirpByIdAndUser :one
+DELETE FROM chirps
+WHERE id = $1 AND user_id = $2
+RETURNING id, created_at, updated_at, body, user_id
+`
+
+type DeleteChirpByIdAndUserParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteChirpByIdAndUser(ctx context.Context, arg DeleteChirpByIdAndUserParams) (Chirp, error) {
+	row := q.db.QueryRowContext(ctx, deleteChirpByIdAndUser, arg.ID, arg.UserID)
+	var i Chirp
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
+		&i.UserID,
+	)
+	return i, err
+}
+
 const getAllChirps = `-- name: GetAllChirps :many
-SELECT id, created_at, updated_at, body, user_id FROM chirps ORDER BY created_at ASC
+SELECT id, created_at, updated_at, body, user_id FROM chirps
+ORDER BY created_at ASC
 `
 
 func (q *Queries) GetAllChirps(ctx context.Context) ([]Chirp, error) {
@@ -75,11 +100,35 @@ func (q *Queries) GetAllChirps(ctx context.Context) ([]Chirp, error) {
 }
 
 const getChirpByID = `-- name: GetChirpByID :one
-SELECT id, created_at, updated_at, body, user_id FROM chirps WHERE id = $1
+SELECT id, created_at, updated_at, body, user_id FROM chirps
+WHERE id = $1
 `
 
 func (q *Queries) GetChirpByID(ctx context.Context, id uuid.UUID) (Chirp, error) {
 	row := q.db.QueryRowContext(ctx, getChirpByID, id)
+	var i Chirp
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const getChirpByIDAndUser = `-- name: GetChirpByIDAndUser :one
+SELECT id, created_at, updated_at, body, user_id FROM chirps
+WHERE id = $1 AND user_id = $2
+`
+
+type GetChirpByIDAndUserParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) GetChirpByIDAndUser(ctx context.Context, arg GetChirpByIDAndUserParams) (Chirp, error) {
+	row := q.db.QueryRowContext(ctx, getChirpByIDAndUser, arg.ID, arg.UserID)
 	var i Chirp
 	err := row.Scan(
 		&i.ID,

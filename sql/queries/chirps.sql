@@ -10,7 +10,18 @@ VALUES (
 RETURNING *;
 
 -- name: GetAllChirps :many
-SELECT * FROM chirps ORDER BY created_at ASC;
+SELECT * FROM chirps
+ORDER BY created_at ASC;
 
 -- name: GetChirpByID :one
-SELECT * FROM chirps WHERE id = $1;
+SELECT * FROM chirps
+WHERE id = $1;
+
+-- name: GetChirpByIDAndUser :one
+SELECT * FROM chirps
+WHERE id = $1 AND user_id = $2;
+
+-- name: DeleteChirpByIdAndUser :one
+DELETE FROM chirps
+WHERE id = $1 AND user_id = $2
+RETURNING *;
