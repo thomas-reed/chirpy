@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -12,11 +13,11 @@ import (
 )
 
 type Chirp struct {
-	Id uuid.UUID `json:"id"`
+	ID uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Body string `json:"body"`
-	UserId uuid.UUID `json:"user_id"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
 func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,11 +62,11 @@ func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	jsonResponse(w, http.StatusCreated, Chirp{
-		Id: chirp.ID,
+		ID: chirp.ID,
 		CreatedAt: chirp.CreatedAt,
 		UpdatedAt: chirp.UpdatedAt,
 		Body: chirp.Body,
-		UserId: chirp.UserID,
+		UserID: chirp.UserID,
 	})
 }
 
@@ -87,20 +88,44 @@ func cleanText(text string) string {
 
 
 func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
-	rawChirps, err := cfg.db.GetAllChirps(r.Context())
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error getting all chirps", err)
-		return
+	var rawChirps []database.Chirp
+	var err error
+	// check for author_id parameter
+	authorID := r.URL.Query().Get("author_id")
+	if authorID == "" {
+		rawChirps, err = cfg.db.GetAllChirps(r.Context())
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error getting all chirps", err)
+			return
+		}
+	} else {
+		id, err := uuid.Parse(authorID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid author ID", err)
+			return
+		}
+		rawChirps, err = cfg.db.GetAllChirpsByUser(r.Context(), id)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error getting all chirps for user", err)
+			return
+		}
+	}
+	// check for sort parameter desc
+	sortDir := r.URL.Query().Get("sort")
+	if strings.ToLower(sortDir) == "desc" {
+		sort.Slice(rawChirps, func (i, j int) bool {
+			return rawChirps[i].CreatedAt.After(rawChirps[j].CreatedAt)
+		})
 	}
 
 	chirps := make([]Chirp, 0, len(rawChirps))
 	for _, chirp := range rawChirps {
 		chirps = append(chirps, Chirp{
-			Id: chirp.ID,
+			ID: chirp.ID,
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
 			Body: chirp.Body,
-			UserId: chirp.UserID,
+			UserID: chirp.UserID,
 		})
 	}
 	
@@ -121,11 +146,11 @@ func (cfg *apiConfig) getChirpByIDHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	jsonResponse(w, http.StatusOK, Chirp{
-		Id: chirp.ID,
+		ID: chirp.ID,
 		CreatedAt: chirp.CreatedAt,
 		UpdatedAt: chirp.UpdatedAt,
 		Body: chirp.Body,
-		UserId: chirp.UserID,
+		UserID: chirp.UserID,
 	})
 }
 
