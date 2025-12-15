@@ -19,18 +19,18 @@ type Chirp struct {
 	UserId uuid.UUID `json:"user_id"`
 }
 
-func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, req *http.Request) {
+func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
-	decoder := json.NewDecoder(req.Body)
+	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error decoding chirp parameters", err)
+		respondWithError(w, http.StatusBadRequest, "Error decoding chirp parameters", err)
 		return
 	}
-	token, err := auth.GetBearerToken(req.Header)
+	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Error getting authorization token", err)
 		return
@@ -54,7 +54,7 @@ func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, req *http.Request) 
 		UserID: userID,
 	}
 
-	chirp, err := cfg.db.CreateChirp(req.Context(), newChirpParams)
+	chirp, err := cfg.db.CreateChirp(r.Context(), newChirpParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating chirp", err)
 		return
@@ -86,8 +86,8 @@ func cleanText(text string) string {
 }
 
 
-func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, req *http.Request) {
-	rawChirps, err := cfg.db.GetAllChirps(req.Context())
+func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	rawChirps, err := cfg.db.GetAllChirps(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error getting all chirps", err)
 		return
@@ -107,14 +107,14 @@ func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, req *http.Request)
 	jsonResponse(w, http.StatusOK, chirps)
 }
 
-func (cfg *apiConfig) getChirpByIDHandler(w http.ResponseWriter, req *http.Request) {
-	idStr := req.PathValue("chirpID")
+func (cfg *apiConfig) getChirpByIDHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("chirpID")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid chirp id", err)
 		return
 	}
-	chirp, err := cfg.db.GetChirpByID(req.Context(), id)
+	chirp, err := cfg.db.GetChirpByID(r.Context(), id)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "No chirp with provided id", err)
 		return
@@ -129,8 +129,8 @@ func (cfg *apiConfig) getChirpByIDHandler(w http.ResponseWriter, req *http.Reque
 	})
 }
 
-func (cfg *apiConfig) deleteChirpByIDHandler(w http.ResponseWriter, req *http.Request) {
-	token, err := auth.GetBearerToken(req.Header)
+func (cfg *apiConfig) deleteChirpByIDHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Refresh token not in headers", err)
 		return
@@ -140,7 +140,7 @@ func (cfg *apiConfig) deleteChirpByIDHandler(w http.ResponseWriter, req *http.Re
 		respondWithError(w, http.StatusUnauthorized, "Invalid token", err)
 		return
 	}
-	idStr := req.PathValue("chirpID")
+	idStr := r.PathValue("chirpID")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid chirp id", err)
@@ -150,7 +150,7 @@ func (cfg *apiConfig) deleteChirpByIDHandler(w http.ResponseWriter, req *http.Re
 		ID: id,
 		UserID: userID,
 	}
-	_, err = cfg.db.GetChirpByIDAndUser(req.Context(), getChirpParams)
+	_, err = cfg.db.GetChirpByIDAndUser(r.Context(), getChirpParams)
 	if err != nil {
 		respondWithError(w, http.StatusForbidden, "Must be author of chirp to delete", err)
 		return
@@ -160,7 +160,7 @@ func (cfg *apiConfig) deleteChirpByIDHandler(w http.ResponseWriter, req *http.Re
 		ID: id,
 		UserID: userID,
 	}
-	_, err = cfg.db.DeleteChirpByIdAndUser(req.Context(), deleteParams)
+	_, err = cfg.db.DeleteChirpByIdAndUser(r.Context(), deleteParams)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "No chirp with provided id", err)
 		return

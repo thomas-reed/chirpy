@@ -11,13 +11,13 @@ type refresh struct {
 	Token string `json:"token"`
 }
 
-func (cfg *apiConfig) refreshHandler(w http.ResponseWriter, req *http.Request){
-	token, err := auth.GetBearerToken(req.Header)
+func (cfg *apiConfig) refreshHandler(w http.ResponseWriter, r *http.Request){
+	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Refresh token not in headers", err)
 		return
 	}
-	refreshToken, err := cfg.db.GetRefreshToken(req.Context(), token)
+	refreshToken, err := cfg.db.GetRefreshToken(r.Context(), token)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token not found in DB", err)
 		return

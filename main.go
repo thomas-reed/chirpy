@@ -17,6 +17,7 @@ type apiConfig struct {
 	db *database.Queries
 	platform string
 	jwtSecret string
+	polkaKey string
 }
 
 func main() {
@@ -37,6 +38,10 @@ func main() {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatalln("jwt secret not found")
+	}
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatalln("polka api key not found")
 	}
 	
 	dbURL := os.Getenv("DB_URL")
@@ -61,6 +66,7 @@ func main() {
 		db: database.New(dbConn),
 		platform: platform,
 		jwtSecret: jwtSecret,
+		polkaKey: polkaKey,
 	}
 
 	mux := http.NewServeMux()
@@ -77,6 +83,7 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiConfig.addChirpHandler)
 	mux.HandleFunc("POST /api/refresh", apiConfig.refreshHandler)
 	mux.HandleFunc("POST /api/revoke", apiConfig.revokeHandler)
+	mux.HandleFunc("POST /api/polka/webhooks", apiConfig.addChirpyRedHandler)
 
 	mux.HandleFunc("GET /admin/metrics", apiConfig.metricsHandler)
 	mux.HandleFunc("POST /admin/reset", apiConfig.resetHandler)

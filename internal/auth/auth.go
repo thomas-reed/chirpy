@@ -46,7 +46,7 @@ func GetBearerToken(headers http.Header) (string, error) {
 	}
 	token := strings.TrimSpace(strings.TrimPrefix(bearerToken, "Bearer"))
 	if token == "" {
-		return "",errMsg
+		return "", errMsg
 	}
 	return token, nil
 }
@@ -57,4 +57,21 @@ func MakeRefreshToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(random), nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	errMsg := errors.New("bad authorization header")
+	apiToken := headers.Get("Authorization")
+	if apiToken == "" {
+		return "", errMsg
+	}
+	apiToken = strings.TrimSpace(apiToken)
+	if !strings.HasPrefix(apiToken, "ApiKey ") {
+		return "", errMsg
+	}
+	token := strings.TrimSpace(strings.TrimPrefix(apiToken, "ApiKey"))
+	if token == "" {
+		return "", errMsg
+	}
+	return token, nil
 }

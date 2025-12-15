@@ -21,12 +21,16 @@ func respondWithError(w http.ResponseWriter, errCode int, errMsg string, err err
 }
 
 func jsonResponse(w http.ResponseWriter, code int, payload interface{}) {
+	// No body for 204, 304
+	if code == http.StatusNoContent || code == http.StatusNotModified {
+		w.WriteHeader(code)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Error marshalling json: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(json)
 		return
 	}
 	w.WriteHeader(code)

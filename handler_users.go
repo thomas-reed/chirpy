@@ -13,22 +13,23 @@ import (
 
 type User struct {
 	ID uuid.UUID `json:"id"`
+	Email string `json:"email"`
+	Password string `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Email string `json:"email"`
+	IsChirpyRed bool `json:"is_chirpy_red"`
 }
 
-type parameters struct {
-	Email string `json:"email"`
-	Password string `json:"password"`
-}
-
-func (cfg *apiConfig) addUserHandler(w http.ResponseWriter, req *http.Request) {
-	decoder := json.NewDecoder(req.Body)
+func (cfg *apiConfig) addUserHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Email string `json:"email"`
+		Password string `json:"password"`
+	}
+	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error decoding user parameters", err)
+		respondWithError(w, http.StatusBadRequest, "Error decoding user parameters", err)
 		return
 	}
 	if _, err := mail.ParseAddress(params.Email); err != nil {
@@ -48,7 +49,7 @@ func (cfg *apiConfig) addUserHandler(w http.ResponseWriter, req *http.Request) {
 		HashedPassword: hash,
 	}
 
-	user, err := cfg.db.CreateUser(req.Context(), createUserParams)
+	user, err := cfg.db.CreateUser(r.Context(), createUserParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating user", err)
 		return
@@ -56,14 +57,18 @@ func (cfg *apiConfig) addUserHandler(w http.ResponseWriter, req *http.Request) {
 	
 	jsonResponse(w, http.StatusCreated, User{
 		ID: user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
 		Email: user.Email,
+		CreatedAt: user.CreatedAt,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
 
-func (cfg *apiConfig) updateUserCredsHandler(w http.ResponseWriter, req *http.Request) {
-	token, err := auth.GetBearerToken(req.Header)
+func (cfg *apiConfig) updateUserCredsHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Email string `json:"email"`
+		Password string `json:"password"`
+	}
+	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Refresh token not in headers", err)
 		return
@@ -73,11 +78,11 @@ func (cfg *apiConfig) updateUserCredsHandler(w http.ResponseWriter, req *http.Re
 		respondWithError(w, http.StatusUnauthorized, "Invalid token", err)
 		return
 	}
-	decoder := json.NewDecoder(req.Body)
+	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err = decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error decoding user parameters", err)
+		respondWithError(w, http.StatusBadRequest, "Error decoding user parameters", err)
 		return
 	}
 	if _, err := mail.ParseAddress(params.Email); err != nil {
@@ -98,7 +103,7 @@ func (cfg *apiConfig) updateUserCredsHandler(w http.ResponseWriter, req *http.Re
 		HashedPassword: hash,
 	}
 
-	user, err := cfg.db.UpdateCredsByUserID(req.Context(), updateCredsParams)
+	user, err := cfg.db.UpdateCredsByUserID(r.Context(), updateCredsParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating user credentials", err)
 		return
@@ -108,5 +113,6 @@ func (cfg *apiConfig) updateUserCredsHandler(w http.ResponseWriter, req *http.Re
 		ID: user.ID,
 		Email: user.Email,
 		UpdatedAt: user.UpdatedAt,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
